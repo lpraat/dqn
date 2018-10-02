@@ -48,7 +48,6 @@ class DQN:
         self.episode_reward_summary = tf.summary.scalar("reward", self.episode_reward_tf)
         self.summaries = [*self.Q.summaries, self.episode_reward_summary]
         self.merged_summaries = tf.summary.merge(self.summaries)
-
         self.sess = None
 
     def q_step(self):
@@ -87,25 +86,30 @@ class DQN:
 
         return observation, reward, end, info
 
-    def train(self):
+    def train(self, write_summaries):
 
         states, actions, rewards, next_states, ends = self.replay_memory.sample_batch(self.mini_batch_size)
         one_hot_actions = one_hot(actions, self.num_actions)
         preds = self.sess.run(self.Q.output, feed_dict={self.Q.x: states})
+        preds_next = self.sess.run(self.Q.output, feed_dict={self.Q.x: next_states})
         preds_t = self.sess.run(self.targetQ.output, feed_dict={self.targetQ.x: next_states})
 
+        next_actions = np.argmax(preds_next, axis=1)
         targets = np.zeros((self.mini_batch_size, preds.shape[1]))
-        targets += rewards + self.gamma * np.max(preds_t, axis=1, keepdims=True) * (1 - ends)
+        next_qs = preds_t[np.arange(preds_t.shape[0]), next_actions].reshape(self.mini_batch_size, 1)
+        targets += rewards + (self.gamma * next_qs) * (1 - ends)
         targets *= one_hot_actions
         targets += preds * (1 - one_hot_actions)
 
-        self.fitQ(states, targets)
+        self.fitQ(states, targets, write_summaries)
 
-    def fitQ(self, states, targets):
+    def fitQ(self, states, targets, write_summaries):
         _, loss = self.sess.run((self.Q.optimizer, self.Q.loss), feed_dict={self.Q.x: states, self.Q.y: targets})
-        self.writer.add_summary(self.sess.run(self.merged_summaries,
-                                              feed_dict={self.Q.x: states, self.Q.y: targets,
-                                                         self.episode_reward_tf: self.episode_reward}))
+
+        if write_summaries:
+            self.writer.add_summary(self.sess.run(self.merged_summaries,
+                                                  feed_dict={self.Q.x: states, self.Q.y: targets,
+                                                             self.episode_reward_tf: self.episode_reward}))
 
     def update_targetQ(self):
         for i in range(len(self.q_params)):
@@ -132,7 +136,11 @@ class DQN:
                 self.replay_memory.add_sample(new_experience)  # store transition in replay memory
 
                 if step % self.update_freq == 0 and len(self.replay_memory.buffer) >= self.mini_batch_size:
-                    self.train()
+
+                    if step % 10 == 0:  # push summaries to event file every 10 step
+                        self.train(write_summaries=True)
+                    else:
+                        self.train(write_summaries=False)
 
                 if step % self.target_update_freq == 0:
                     self.update_targetQ()

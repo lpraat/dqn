@@ -1,9 +1,8 @@
 import numpy as np
 import tensorflow as tf
 
-from src.dqn.model import Model
+from src.dqn.graph import new_model_graph, new_targets_graph
 from src.dqn.replay_memory import ReplayMemory
-from src.utils import one_hot
 
 Q_NETWORK_NAME = "q_network"
 TARGET_Q_NETWORK_NAME = "target_q_network"
@@ -20,16 +19,28 @@ class DQN:
         self.state_size = len(self.s)
 
         self.r = 0
-        self.total_rewards = []
-        self.mean_reward = 0
         self.episode_reward = 0
+        self.total_rewards = []
+        self.curr_mean = 0
 
-        self.Q = Model(self.state_size, self.num_actions, learning_rate, Q_NETWORK_NAME)
-        self.targetQ = Model(self.state_size, self.num_actions, learning_rate, TARGET_Q_NETWORK_NAME)
+        self.mini_batch_size = mini_batch_size
+        self.update_freq = update_freq
+        self.target_update_freq = target_udpate_freq
+
+        # create tensorflow graphs
+        # q graph
+        self.g_q = new_model_graph(Q_NETWORK_NAME, self.state_size, self.num_actions, learning_rate)
+        # target q graph
+        self.g_target_q = new_model_graph(TARGET_Q_NETWORK_NAME, self.state_size, self.num_actions, learning_rate)
+
+        # targets graph
+        self.g_targets = new_targets_graph(self.mini_batch_size, self.num_actions)
+
+        # q models trainable parameters
         self.q_params = tf.trainable_variables(Q_NETWORK_NAME)
         self.target_q_params = tf.trainable_variables(TARGET_Q_NETWORK_NAME)
-        self.gamma = gamma
 
+        self.gamma = gamma
         self.epsilon = epsilon
         self.epsilon_decay = epsilon_decay
         self.epsilon_min = epsilon_min
@@ -38,15 +49,19 @@ class DQN:
         dims = (self.state_size, 1, 1, self.state_size, 1)
         self.replay_memory = ReplayMemory(self.replay_size, dims)
 
-        self.mini_batch_size = mini_batch_size
-        self.update_freq = update_freq
-        self.target_update_freq = target_udpate_freq
-
-        # Summaries
+        # summaries
         self.writer = tf.summary.FileWriter(path)
+
+        # create a summary for total reward per episode
         self.episode_reward_tf = tf.placeholder(dtype=tf.float32)
         self.episode_reward_summary = tf.summary.scalar("reward", self.episode_reward_tf)
-        self.summaries = [*self.Q.summaries, self.episode_reward_summary]
+
+        # create a summary for moving average
+        self.curr_mean_tf = tf.placeholder(dtype=tf.float32)
+        self.curr_mean_summary = tf.summary.scalar("mean_reward", self.curr_mean_tf)
+
+        # merge all the summaries
+        self.summaries = [*self.g_q.summaries, self.episode_reward_summary, self.curr_mean_summary]
         self.merged_summaries = tf.summary.merge(self.summaries)
         self.sess = None
 
@@ -54,7 +69,7 @@ class DQN:
         s = self.s.reshape(1, self.state_size)
 
         if np.random.rand() > self.epsilon:
-            a = np.argmax(self.sess.run(self.Q.output, feed_dict={self.Q.x: s}))
+            a = np.argmax(self.sess.run(self.g_q.output, feed_dict={self.g_q.states: s}))
         else:
             # random action
             a = np.random.randint(self.num_actions)
@@ -69,13 +84,16 @@ class DQN:
         self.r += reward
 
         if end:
-            print(f"End of episode. Total reward: {self.r}")
-            self.episode_reward = self.r
             self.total_rewards.append(self.r)
+            self.episode_reward = self.r
+            print(f"End of episode. Reward: {self.episode_reward}")
+
+            # weighted average with beta=0.99 to consider approx 1/(1-beta)=100 last episode rewards
+            self.curr_mean = 0.99 * self.curr_mean + 0.01 * self.r
 
             if len(self.total_rewards) == 100:
-                self.mean_reward = np.mean(self.total_rewards)
-                print(f"Mean reward in 100 episodes: {self.mean_reward}")
+                mean_reward = np.mean(self.total_rewards)
+                print(f"Mean reward in 100 episodes: {mean_reward}")
                 self.total_rewards = []
 
             self.r = 0
@@ -87,29 +105,32 @@ class DQN:
         return observation, reward, end, info
 
     def train(self, write_summaries):
-
         states, actions, rewards, next_states, ends = self.replay_memory.sample_batch(self.mini_batch_size)
-        one_hot_actions = one_hot(actions, self.num_actions)
-        preds = self.sess.run(self.Q.output, feed_dict={self.Q.x: states})
-        preds_next = self.sess.run(self.Q.output, feed_dict={self.Q.x: next_states})
-        preds_t = self.sess.run(self.targetQ.output, feed_dict={self.targetQ.x: next_states})
 
-        next_actions = np.argmax(preds_next, axis=1)
-        targets = np.zeros((self.mini_batch_size, preds.shape[1]))
-        next_qs = preds_t[np.arange(preds_t.shape[0]), next_actions].reshape(self.mini_batch_size, 1)
-        targets += rewards + (self.gamma * next_qs) * (1 - ends)
-        targets *= one_hot_actions
-        targets += preds * (1 - one_hot_actions)
+        preds_next = self.sess.run(self.g_q.output, feed_dict={self.g_q.states: next_states})
+        preds_t = self.sess.run(self.g_target_q.output, feed_dict={self.g_target_q.states: next_states})
 
-        self.fitQ(states, targets, write_summaries)
+        targets = self.sess.run(self.g_targets.targets, feed_dict={
+            self.g_targets.actions: actions,
+            self.g_targets.preds_next: preds_next,
+            self.g_targets.preds_t: preds_t,
+            self.g_targets.rewards: rewards,
+            self.g_targets.ends: ends,
+            self.g_targets.gamma: self.gamma
+        })
 
-    def fitQ(self, states, targets, write_summaries):
-        _, loss = self.sess.run((self.Q.optimizer, self.Q.loss), feed_dict={self.Q.x: states, self.Q.y: targets})
+        _, loss = self.sess.run((self.g_q.optimizer, self.g_q.loss),
+                                feed_dict={self.g_q.states: states,
+                                           self.g_q.targets: targets,
+                                           self.g_q.actions: actions})
 
         if write_summaries:
             self.writer.add_summary(self.sess.run(self.merged_summaries,
-                                                  feed_dict={self.Q.x: states, self.Q.y: targets,
-                                                             self.episode_reward_tf: self.episode_reward}))
+                                                  feed_dict={self.g_q.states: states,
+                                                             self.g_q.targets: targets,
+                                                             self.g_q.actions: actions,
+                                                             self.episode_reward_tf: self.episode_reward,
+                                                             self.curr_mean_tf: self.curr_mean}))
 
     def update_targetQ(self):
         for i in range(len(self.q_params)):
@@ -137,7 +158,7 @@ class DQN:
 
                 if step % self.update_freq == 0 and len(self.replay_memory.buffer) >= self.mini_batch_size:
 
-                    if step % 10 == 0:  # push summaries to event file every 10 step
+                    if step % 50 == 0:  # push summaries to event file every 50 step
                         self.train(write_summaries=True)
                     else:
                         self.train(write_summaries=False)

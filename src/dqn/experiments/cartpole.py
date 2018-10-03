@@ -8,15 +8,15 @@ cart = gym.make('CartPole-v0')
 
 dqn = DQN(gamma=0.999,
           epsilon=1,
-          epsilon_decay=lambda eps, step: eps - step / 1000000,
-          epsilon_min=0.01,
+          epsilon_decay=lambda eps, step: eps - step / 10000000,
+          epsilon_min=0.02,
           learning_rate=0.00025,
           replay_size=100000,
           mini_batch_size=64,
           update_freq=1,
-          target_udpate_freq=200,
+          target_udpate_freq=500,
           env=cart,
-          path="/Users/lpraat/Desktop/cart_pole" + str(time.time())
+          path="/Users/lpraat/Desktop/cart_pole/pole" + str(time.time())
           )
 
 dqn.run()

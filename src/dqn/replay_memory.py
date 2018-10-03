@@ -17,7 +17,7 @@ class ReplayMemory:
             self.curr_index = (self.curr_index + 1) % self.max_size
 
     def sample_batch(self, batch_size):
-        assert batch_size <= len(self.buffer), "Batch size is greater than buffer length"
+        # assert batch_size <= len(self.buffer), "Batch size is greater than buffer length"
         curr_len = len(self.buffer)
 
         states = np.empty((batch_size, self.dims[0]))

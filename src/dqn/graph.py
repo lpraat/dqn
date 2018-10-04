@@ -51,14 +51,14 @@ def new_dueling_model_graph(name, input_size, output_size, learning_rate):
 
         h1_layer = tf.layers.dense(
             inputs=states,
-            units=64,
+            units=256,
             activation=tf.nn.relu
         )
 
         # State value function
         value_h2_layer = tf.layers.dense(
             inputs=h1_layer,
-            units=32,
+            units=128,
             activation=tf.nn.relu
         )
 
@@ -71,7 +71,7 @@ def new_dueling_model_graph(name, input_size, output_size, learning_rate):
         # Advantage function
         advantage_h2_layer = tf.layers.dense(
             inputs=h1_layer,
-            units=32,
+            units=128,
             activation=tf.nn.relu
         )
 
@@ -117,3 +117,7 @@ def new_targets_graph(mini_batch_size, num_actions):
     TargetsGraph = namedtuple('TargetsGraph', ['actions', 'preds_next', 'preds_t',
                                                'rewards', 'ends', 'gamma', 'targets'])
     return TargetsGraph(actions, preds_next, preds_t, rewards, ends, gamma, targets)
+
+
+def new_update_target_graph(q_params, target_q_params):
+    return [tf.assign(target_q_params[i], q_params[i]) for i in range(len(q_params))]

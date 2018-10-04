@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
-from src.dqn.graph import new_targets_graph, new_dueling_model_graph
+from src.dqn.graph import new_targets_graph, new_dueling_model_graph, new_update_target_graph
 from src.dqn.replay_memory import ReplayMemory
 
 Q_NETWORK_NAME = "q_network"
@@ -33,12 +33,13 @@ class DQN:
         # target q graph
         self.g_target_q = new_dueling_model_graph(TARGET_Q_NETWORK_NAME, self.state_size, self.num_actions, learning_rate)
 
+        # update target graph
+        q_params = tf.trainable_variables(Q_NETWORK_NAME)
+        target_q_params = tf.trainable_variables(TARGET_Q_NETWORK_NAME)
+        self.g_update_target_q = new_update_target_graph(q_params, target_q_params)
+
         # targets graph
         self.g_targets = new_targets_graph(self.mini_batch_size, self.num_actions)
-
-        # q models trainable parameters
-        self.q_params = tf.trainable_variables(Q_NETWORK_NAME)
-        self.target_q_params = tf.trainable_variables(TARGET_Q_NETWORK_NAME)
 
         self.gamma = gamma
         self.epsilon = epsilon
@@ -79,7 +80,7 @@ class DQN:
         return np.array((s, a, reward, next_s, done)).reshape(1, 5)
 
     def act(self, a):
-       # self.env.render()
+        self.env.render()
         observation, reward, end, info = self.env.step(a)
         self.r += reward
 
@@ -133,8 +134,7 @@ class DQN:
                                                              self.curr_mean_tf: self.curr_mean}))
 
     def update_targetQ(self):
-        for i in range(len(self.q_params)):
-            self.sess.run(self.target_q_params[i].assign(self.q_params[i]))
+        self.sess.run(self.g_update_target_q)
 
     def run(self):
 
@@ -156,6 +156,8 @@ class DQN:
                 # print(self.epsilon)
                 self.replay_memory.add_sample(new_experience)  # store transition in replay memory
 
+                step += 1
+
                 if step % self.update_freq == 0 and len(self.replay_memory.buffer) >= self.mini_batch_size:
 
                     if step % 100 == 0:  # push summaries to event file every 50 step
@@ -166,4 +168,3 @@ class DQN:
                 if step % self.target_update_freq == 0:
                     self.update_targetQ()
 
-                step += 1

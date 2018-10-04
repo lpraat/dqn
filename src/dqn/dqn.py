@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
-from src.dqn.graph import new_model_graph, new_targets_graph
+from src.dqn.graph import new_targets_graph, new_dueling_model_graph
 from src.dqn.replay_memory import ReplayMemory
 
 Q_NETWORK_NAME = "q_network"
@@ -29,9 +29,9 @@ class DQN:
 
         # create tensorflow graphs
         # q graph
-        self.g_q = new_model_graph(Q_NETWORK_NAME, self.state_size, self.num_actions, learning_rate)
+        self.g_q = new_dueling_model_graph(Q_NETWORK_NAME, self.state_size, self.num_actions, learning_rate)
         # target q graph
-        self.g_target_q = new_model_graph(TARGET_Q_NETWORK_NAME, self.state_size, self.num_actions, learning_rate)
+        self.g_target_q = new_dueling_model_graph(TARGET_Q_NETWORK_NAME, self.state_size, self.num_actions, learning_rate)
 
         # targets graph
         self.g_targets = new_targets_graph(self.mini_batch_size, self.num_actions)
@@ -79,7 +79,7 @@ class DQN:
         return np.array((s, a, reward, next_s, done)).reshape(1, 5)
 
     def act(self, a):
-        self.env.render()
+       # self.env.render()
         observation, reward, end, info = self.env.step(a)
         self.r += reward
 
@@ -158,7 +158,7 @@ class DQN:
 
                 if step % self.update_freq == 0 and len(self.replay_memory.buffer) >= self.mini_batch_size:
 
-                    if step % 50 == 0:  # push summaries to event file every 50 step
+                    if step % 100 == 0:  # push summaries to event file every 50 step
                         self.train(write_summaries=True)
                     else:
                         self.train(write_summaries=False)

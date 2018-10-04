@@ -14,7 +14,7 @@ dqn = DQN(gamma=0.999,
           replay_size=100000,
           mini_batch_size=64,
           update_freq=1,
-          target_udpate_freq=500,
+          target_udpate_freq=100,
           env=cart,
           path="/Users/lpraat/Desktop/cart_pole/pole" + str(time.time())
           )

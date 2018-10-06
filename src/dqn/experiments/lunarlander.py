@@ -4,7 +4,7 @@ from src.dqn.dqn import DQN
 import time
 
 
-cart = gym.make('LunarLander-v2')
+lander = gym.make('LunarLander-v2')
 
 dqn = DQN(gamma=0.99,
           epsilon=1,
@@ -15,7 +15,7 @@ dqn = DQN(gamma=0.99,
           mini_batch_size=256,
           update_freq=4,
           target_udpate_freq=100,
-          env=cart,
+          env=lander,
           path="/Users/lpraat/Desktop/lunar/lander" + str(time.time())
           )
 

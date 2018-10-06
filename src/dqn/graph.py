@@ -29,6 +29,7 @@ def new_model_graph(name, input_size, output_size, learning_rate):
         q_values = tf.multiply(output, (tf.one_hot(tf.squeeze(actions), output_size)))
 
         loss = tf.reduce_mean(tf.losses.mean_squared_error(labels=targets, predictions=q_values))
+
         optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate).minimize(loss)
 
         summaries = []
@@ -43,7 +44,7 @@ def new_model_graph(name, input_size, output_size, learning_rate):
         return ModelGraph(states, targets, actions, output, q_values, loss, optimizer, summaries)
 
 
-def new_dueling_model_graph(name, input_size, output_size, learning_rate):
+def new_dueling_model_graph(name, input_size, output_size, learning_rate, clipvalue=False):
     with tf.variable_scope(name):
         states = tf.placeholder(tf.float32, shape=[None, input_size])
         targets = tf.placeholder(tf.float32, shape=[None, output_size])
@@ -86,7 +87,14 @@ def new_dueling_model_graph(name, input_size, output_size, learning_rate):
         q_values = tf.multiply(output, (tf.one_hot(tf.squeeze(actions), output_size)))
 
         loss = tf.reduce_mean(tf.losses.mean_squared_error(labels=targets, predictions=q_values))
-        optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate).minimize(loss)
+
+        optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate)
+        if clipvalue:
+            grads_and_vars = optimizer.compute_gradients(loss)
+            clipped_grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
+            optimizer = optimizer.apply_gradients(clipped_grads_and_vars)
+        else:
+            optimizer = optimizer.minimize(loss)
 
         summaries = []
         train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, name)

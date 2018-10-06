@@ -29,9 +29,9 @@ class DQN:
 
         # create tensorflow graphs
         # q graph
-        self.g_q = new_dueling_model_graph(Q_NETWORK_NAME, self.state_size, self.num_actions, learning_rate)
+        self.g_q = new_dueling_model_graph(Q_NETWORK_NAME, self.state_size, self.num_actions, learning_rate, clipvalue=True)
         # target q graph
-        self.g_target_q = new_dueling_model_graph(TARGET_Q_NETWORK_NAME, self.state_size, self.num_actions, learning_rate)
+        self.g_target_q = new_dueling_model_graph(TARGET_Q_NETWORK_NAME, self.state_size, self.num_actions, learning_rate, clipvalue=False)
 
         # update target graph
         q_params = tf.trainable_variables(Q_NETWORK_NAME)

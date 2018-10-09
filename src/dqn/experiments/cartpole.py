@@ -15,8 +15,9 @@ dqn = DQN(gamma=0.999,
           mini_batch_size=64,
           update_freq=1,
           target_udpate_freq=100,
+          clip_value=False,
           env=cart,
-          path="/Users/lpraat/Desktop/cart_pole/pole" + str(time.time())
+          tb_path="/Users/lpraat/Desktop/cart/pole" + str(time.time()),
           )
 
 dqn.run()

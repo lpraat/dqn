@@ -11,7 +11,8 @@ TARGET_Q_NETWORK_NAME = "target_q_network"
 class DQN:
     def __init__(self, gamma, epsilon, epsilon_decay, epsilon_min,
                  learning_rate, replay_size, mini_batch_size,
-                 update_freq, target_udpate_freq, env, path):
+                 clip_value, update_freq, target_udpate_freq, env,
+                 tb_path, save_path=None):
         self.env = env
         self.s = self.env.reset()
 
@@ -29,9 +30,11 @@ class DQN:
 
         # create tensorflow graphs
         # q graph
-        self.g_q = new_dueling_model_graph(Q_NETWORK_NAME, self.state_size, self.num_actions, learning_rate, clipvalue=True)
+        self.g_q = new_dueling_model_graph(Q_NETWORK_NAME, self.state_size, self.num_actions, learning_rate,
+                                           clipvalue=clip_value)
         # target q graph
-        self.g_target_q = new_dueling_model_graph(TARGET_Q_NETWORK_NAME, self.state_size, self.num_actions, learning_rate, clipvalue=False)
+        self.g_target_q = new_dueling_model_graph(TARGET_Q_NETWORK_NAME, self.state_size, self.num_actions,
+                                                  learning_rate, clipvalue=False)
 
         # update target graph
         q_params = tf.trainable_variables(Q_NETWORK_NAME)
@@ -51,7 +54,7 @@ class DQN:
         self.replay_memory = ReplayMemory(self.replay_size, dims)
 
         # summaries
-        self.writer = tf.summary.FileWriter(path)
+        self.writer = tf.summary.FileWriter(tb_path)
 
         # create a summary for total reward per episode
         self.episode_reward_tf = tf.placeholder(dtype=tf.float32)
@@ -65,6 +68,12 @@ class DQN:
         self.summaries = [*self.g_q.summaries, self.episode_reward_summary, self.curr_mean_summary]
         self.merged_summaries = tf.summary.merge(self.summaries)
         self.sess = None
+
+        # saver
+        self.save_path = save_path
+        if self.save_path:
+            to_restore = tf.trainable_variables(Q_NETWORK_NAME) + tf.trainable_variables(TARGET_Q_NETWORK_NAME)
+            self.saver = tf.train.Saver(var_list=to_restore)
 
     def q_step(self):
         s = self.s.reshape(1, self.state_size)
@@ -154,13 +163,16 @@ class DQN:
                 new_experience = self.q_step()
                 self.epsilon = max(self.epsilon_min, self.epsilon_decay(self.epsilon, step))
                 # print(self.epsilon)
-                self.replay_memory.add_sample(new_experience)  # store transition in replay memory
+
+                # store transition in replay memory
+                self.replay_memory.add_sample(new_experience)
 
                 step += 1
 
                 if step % self.update_freq == 0 and len(self.replay_memory.buffer) >= self.mini_batch_size:
 
-                    if step % 100 == 0:  # push summaries to event file every 50 step
+                    # push summaries to event file every 100 step
+                    if step % 100 == 0:
                         self.train(write_summaries=True)
                     else:
                         self.train(write_summaries=False)
@@ -168,3 +180,6 @@ class DQN:
                 if step % self.target_update_freq == 0:
                     self.update_targetQ()
 
+                if self.save_path and step % 5000 == 0:
+                    print("Saving model")
+                    self.saver.save(sess, self.save_path)

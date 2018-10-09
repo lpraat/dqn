@@ -14,9 +14,10 @@ dqn = DQN(gamma=0.99,
           replay_size=100000,
           mini_batch_size=256,
           update_freq=4,
-          target_udpate_freq=100,
+          target_udpate_freq=250,
+          clip_value=True,
           env=lander,
-          path="/Users/lpraat/Desktop/lunar/lander" + str(time.time())
+          tb_path="/Users/lpraat/Desktop/lunar/lander" + str(time.time()),
           )
 
 dqn.run()

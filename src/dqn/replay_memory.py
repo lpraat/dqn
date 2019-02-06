@@ -9,7 +9,6 @@ class ReplayMemory:
         self.buffer = []
 
     def add_sample(self, sample):
-
         if len(self.buffer) < self.max_size:
             self.buffer.append(sample)
         else:

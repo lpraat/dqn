@@ -1,8 +1,8 @@
+import time
+
 import gym
 
 from src.dqn.dqn import DQN
-import time
-
 
 lander = gym.make('LunarLander-v2')
 
@@ -17,7 +17,8 @@ dqn = DQN(gamma=0.99,
           target_udpate_freq=250,
           clip_value=True,
           env=lander,
-          tb_path="/Users/lpraat/Desktop/lunar/lander" + str(time.time()),
+          tb_path="/Users/lpraat/Desktop/lunarlander/lander" + str(time.time()),
+          save_path="/Users/lpraat/Desktop/lunarlander/save"
           )
 
 dqn.run()

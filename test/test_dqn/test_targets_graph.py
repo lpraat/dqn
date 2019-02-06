@@ -1,6 +1,7 @@
 import unittest
-import tensorflow as tf
+
 import numpy as np
+import tensorflow as tf
 
 from src.dqn.graph import new_targets_graph
 

@@ -23,6 +23,7 @@ class SumTree:
         node_index = data_index + self.size - 1
         diff = self.nodes[node_index] - value
         self.nodes[node_index] = value
+
         self.update_min_max(value)
 
         while node_index != 0:

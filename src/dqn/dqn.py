@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 from src.dqn.graph import new_targets_graph, new_dueling_model_graph, new_update_target_graph
+from src.dqn.per.per_memory import PERMemory
 from src.dqn.replay_memory import ReplayMemory
 
 Q_NETWORK_NAME = "q_network"
@@ -63,7 +64,7 @@ class DQN:
         self.epsilon_min = epsilon_min
 
         self.replay_size = replay_size
-        self.replay_memory = ReplayMemory(self.replay_size, (self.state_size, 1, 1, self.state_size, 1))
+        self.replay_memory = PERMemory(self.replay_size, self.state_size)
 
         # Summaries
         self.writer = tf.summary.FileWriter(tb_path)
@@ -99,7 +100,7 @@ class DQN:
             a = np.random.randint(self.num_actions)
 
         next_s, reward, done, _ = self.act(a)
-        return np.array((s, a, reward, next_s, done)).reshape(1, 5)
+        return np.array((s, a, reward, next_s, done))
 
     def act(self, a):
         self.env.render()
@@ -128,7 +129,8 @@ class DQN:
         return observation, reward, end, info
 
     def train(self, write_summaries):
-        states, actions, rewards, next_states, ends = self.replay_memory.sample_batch(self.mini_batch_size)
+        states, actions, rewards, next_states, ends, is_weights, node_indices = \
+            self.replay_memory.sample_batch(self.mini_batch_size)
 
         preds_next, preds_t = self.sess.run((self.g_q.output, self.g_target_q.output),
                                             feed_dict={
@@ -145,13 +147,17 @@ class DQN:
             self.g_targets.gamma: self.gamma
         })
 
-        _, merged_summaries = self.sess.run((self.g_q.optimizer, self.merged_summaries),
-                                            feed_dict={self.g_q.states: states,
-                                                       self.g_q.targets: targets,
-                                                       self.g_q.actions: actions,
-                                                       self.episode_reward_tf: self.episode_reward,
-                                                       self.curr_mean_tf: self.curr_mean
-                                                       })
+        _, abs_td_errors, merged_summaries = self.sess.run(
+            (self.g_q.optimizer, self.g_q.abs_td_errors, self.merged_summaries),
+            feed_dict={self.g_q.states: states,
+                       self.g_q.targets: targets,
+                       self.g_q.actions: actions,
+                       self.g_q.is_weights: is_weights,
+                       self.episode_reward_tf: self.episode_reward,
+                       self.curr_mean_tf: self.curr_mean
+                       })
+
+        self.replay_memory.update_priorities(node_indices, abs_td_errors)
 
         if write_summaries:
             self.writer.add_summary(merged_summaries)
@@ -170,8 +176,6 @@ class DQN:
 
             self.writer.add_graph(sess.graph)
 
-            memory_initialized = False
-
             while True:
                 new_experience = self.q_step()
                 self.epsilon = max(self.epsilon_min, self.epsilon_decay(self.epsilon, step))
@@ -181,10 +185,7 @@ class DQN:
 
                 step += 1
 
-                if len(self.replay_memory.buffer) >= self.mini_batch_size:
-                    memory_initialized = True
-
-                if step % self.update_freq == 0 and memory_initialized:
+                if step % self.update_freq == 0 and self.replay_memory.added_samples >= self.mini_batch_size:
 
                     # Push summaries to event file
                     if step % self.push_summaries_freq == 0:

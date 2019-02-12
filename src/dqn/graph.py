@@ -8,6 +8,7 @@ def new_dueling_model_graph(name, input_size, output_size, learning_rate, clipva
         states = tf.placeholder(tf.float32, shape=[None, input_size])
         targets = tf.placeholder(tf.float32, shape=[None, output_size])
         actions = tf.placeholder(tf.int32, shape=[None, 1])
+        is_weights = tf.placeholder(tf.float32, shape=[None, 1])
 
         # TODO add possibility to define a custom network here
         h1_layer = tf.layers.dense(
@@ -45,7 +46,9 @@ def new_dueling_model_graph(name, input_size, output_size, learning_rate, clipva
         output = value_output + (advantage_output - tf.reduce_mean(advantage_output, axis=1, keepdims=True))
 
         q_values = tf.multiply(output, (tf.one_hot(tf.squeeze(actions), output_size)))
-        loss = tf.reduce_mean(tf.losses.mean_squared_error(labels=targets, predictions=q_values))
+
+        abs_td_errors = tf.reduce_sum(tf.abs(q_values - targets), axis=1)
+        loss = tf.reduce_mean(is_weights * tf.losses.mean_squared_error(labels=targets, predictions=q_values))
 
         optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate)
         if clipvalue:
@@ -62,10 +65,11 @@ def new_dueling_model_graph(name, input_size, output_size, learning_rate, clipva
 
         summaries.append(tf.summary.scalar("loss", loss))
 
-        ModelGraph = namedtuple(name, ['states', 'targets', 'actions', 'output',
-                                       'q_values', 'loss', 'optimizer', 'summaries'])
+        ModelGraph = namedtuple(name, ['states', 'targets', 'actions', 'output', 'q_values', 'is_weights',
+                                       'abs_td_errors', 'loss', 'optimizer', 'summaries'])
 
-        return ModelGraph(states, targets, actions, output, q_values, loss, optimizer, summaries)
+        return ModelGraph(states, targets, actions, output, q_values, is_weights,
+                          abs_td_errors, loss, optimizer, summaries)
 
 
 def new_targets_graph(mini_batch_size, num_actions):

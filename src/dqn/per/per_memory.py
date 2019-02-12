@@ -5,31 +5,33 @@ from src.dqn.per.sum_tree import SumTree
 
 class PERMemory:
     def __init__(self,
-                 dims,
-                 alpha=0.6,
-                 beta=0.4,
-                 epsilon=0.005,
-                 beta_grow=lambda beta, train_step: beta + 0.0001,
-                 max_priority=1.,
-                 size=100000):
+                 size,
+                 state_size,
+                 alpha=0.4,
+                 beta=0.7,
+                 epsilon=0.001,
+                 beta_grow=lambda beta, train_step: beta + 1 / 100000,
+                 max_priority=1.):
         self.alpha = alpha
         self.beta = beta
         self.epsilon = epsilon
         self.beta_grow = beta_grow
         self.max_priority = max_priority
         self.size = size
+        self.added_samples = 0
         self.sum_tree = SumTree(size)
-        self.dims = dims
+        self.state_size = state_size
         self.train_step = 0
 
     def add_sample(self, sample):
-        self.sum_tree.add(sample, self.sum_tree.max_value if self.sum_tree.max_value is not None else self.max_priority)
+        self.sum_tree.add(self.sum_tree.max_value if self.sum_tree.max_value is not None else self.max_priority, sample)
+        self.added_samples += 1
 
     def sample_batch(self, batch_size):
-        states = np.empty((batch_size, self.dims[0]))
-        actions = np.empty((batch_size, self.dims[1]), dtype=np.int32)
+        states = np.empty((batch_size, self.state_size))
+        actions = np.empty((batch_size, 1), dtype=np.int32)
         rewards = np.empty((batch_size, 1))
-        next_states = np.empty((batch_size, self.dims[0]))
+        next_states = np.empty((batch_size, self.state_size))
         ends = np.empty((batch_size, 1), dtype=np.int32)
         is_weights = np.empty((batch_size, 1))
         node_indices = np.empty((batch_size,), dtype=np.int32)
@@ -50,7 +52,9 @@ class PERMemory:
             node_indices[i] = data_index
 
         self.train_step += 1
-        self.beta = self.beta_grow(self.beta, self.train_step)
+        self.beta = min(1, self.beta_grow(self.beta, self.train_step))
+        if (self.train_step % 1000) == 0:
+            print(self.beta)
 
         return states, actions, rewards, next_states, ends, is_weights, node_indices
 
@@ -59,5 +63,5 @@ class PERMemory:
         updated_priorities = np.power(abs_td_errors, self.alpha)
 
         for i in range(len(updated_priorities)):
-            self.sum_tree.update(node_indices, updated_priorities[i])
+            self.sum_tree.update(node_indices[i], updated_priorities[i])
 

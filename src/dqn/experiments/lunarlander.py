@@ -22,3 +22,4 @@ dqn = DQN(gamma=0.99,
           )
 
 dqn.run()
+dqn.run_from_model()

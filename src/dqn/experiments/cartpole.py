@@ -6,9 +6,9 @@ from src.dqn.dqn import DQN
 
 cart = gym.make('CartPole-v0')
 
-dqn = DQN(gamma=0.999,
+dqn = DQN(gamma=1,
           epsilon=1,
-          epsilon_decay=lambda eps, step: eps - step / 100000,
+          epsilon_decay=lambda eps, step: eps - step / 10000000,
           epsilon_min=0.02,
           learning_rate=0.00025,
           replay_size=100000,
@@ -18,9 +18,7 @@ dqn = DQN(gamma=0.999,
           clip_value=False,
           env=cart,
           tb_path="/Users/lpraat/Desktop/cartpole/pole" + str(time.time()),
-          save_path="/Users/lpraat/Desktop/cartpole/model.ckpt",
-          save_freq=1000
           )
 
-#dqn.run()
-dqn.run_from_model()
+dqn.run()
+#dqn.run_from_model()

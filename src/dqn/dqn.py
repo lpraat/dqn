@@ -2,8 +2,8 @@ import numpy as np
 import tensorflow as tf
 
 from src.dqn.graph import new_targets_graph, new_dueling_model_graph, new_update_target_graph
-from src.dqn.per.per_memory import PERMemory
-from src.dqn.replay_memory import ReplayMemory
+from src.dqn.replay.per_memory import PERMemory
+from src.dqn.replay.replay_memory import ReplayMemory
 
 Q_NETWORK_NAME = "q_network"
 TARGET_Q_NETWORK_NAME = "target_q_network"
@@ -22,11 +22,19 @@ class DQN:
                  mini_batch_size=64,
                  clip_value=False,
                  update_freq=4,
+                 prioritized_replay=False,
+                 prioritized_replay_alpha=0.6,
+                 prioritized_replay_beta=0.4,
+                 prioritized_replay_beta_grow=lambda beta, train_step: beta + 1 / 100000,
+                 prioritized_replay_epsilon=1e-3,
+                 prioritized_replay_max_priority=1.0,
                  target_udpate_freq=500,
+                 total_timesteps=np.inf,
                  tb_path=None,
                  push_summaries_freq=100,
                  save_path=None,
-                 save_freq=10000):
+                 save_freq=10000,
+                 ):
         # TODO add custom network defined by the user
         self.env = env
         self.s = self.env.reset()
@@ -62,9 +70,20 @@ class DQN:
         self.epsilon = epsilon
         self.epsilon_decay = epsilon_decay
         self.epsilon_min = epsilon_min
+        self.total_timesteps = total_timesteps
 
         self.replay_size = replay_size
-        self.replay_memory = PERMemory(self.replay_size, self.state_size)
+        self.prioritized_replay = prioritized_replay
+
+        if self.prioritized_replay:
+            self.replay_memory = PERMemory(self.replay_size, self.state_size,
+                                           alpha=prioritized_replay_alpha,
+                                           beta=prioritized_replay_beta,
+                                           epsilon=prioritized_replay_epsilon,
+                                           beta_grow=prioritized_replay_beta_grow,
+                                           max_priority=prioritized_replay_max_priority)
+        else:
+            self.replay_memory = ReplayMemory(self.replay_size, self.state_size)
 
         # Summaries
         self.writer = tf.summary.FileWriter(tb_path)
@@ -129,8 +148,13 @@ class DQN:
         return observation, reward, end, info
 
     def train(self, write_summaries):
-        states, actions, rewards, next_states, ends, is_weights, node_indices = \
-            self.replay_memory.sample_batch(self.mini_batch_size)
+
+        if self.prioritized_replay:
+            states, actions, rewards, next_states, ends, is_weights, node_indices = \
+                self.replay_memory.sample_batch(self.mini_batch_size)
+        else:
+            states, actions, rewards, next_states, ends = self.replay_memory.sample_batch(self.mini_batch_size)
+            is_weights = np.ones_like(ends, dtype=np.float32)
 
         preds_next, preds_t = self.sess.run((self.g_q.output, self.g_target_q.output),
                                             feed_dict={
@@ -157,7 +181,8 @@ class DQN:
                        self.curr_mean_tf: self.curr_mean
                        })
 
-        self.replay_memory.update_priorities(node_indices, abs_td_errors)
+        if self.prioritized_replay:
+            self.replay_memory.update_priorities(node_indices, abs_td_errors)
 
         if write_summaries:
             self.writer.add_summary(merged_summaries)
@@ -176,7 +201,7 @@ class DQN:
 
             self.writer.add_graph(sess.graph)
 
-            while True:
+            while step < self.total_timesteps:
                 new_experience = self.q_step()
                 self.epsilon = max(self.epsilon_min, self.epsilon_decay(self.epsilon, step))
 

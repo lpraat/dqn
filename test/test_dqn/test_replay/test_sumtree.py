@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from src.dqn.per.sum_tree import SumTree
+from src.dqn.replay.sum_tree import SumTree
 
 
 class TestSumTree(unittest.TestCase):

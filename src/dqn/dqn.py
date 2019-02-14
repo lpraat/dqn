@@ -20,7 +20,7 @@ class DQN:
                  learning_rate=0.00025,
                  replay_size=100000,
                  mini_batch_size=64,
-                 clip_value=False,
+                 clip_grad=True,
                  update_freq=4,
                  prioritized_replay=False,
                  prioritized_replay_alpha=0.6,
@@ -53,10 +53,10 @@ class DQN:
         # Create tensorflow graphs
         # Q graph
         self.g_q = new_dueling_model_graph(Q_NETWORK_NAME, self.state_size, self.num_actions, learning_rate,
-                                           clipvalue=clip_value)
+                                           clip_grad=clip_grad)
         # Target Q graph
         self.g_target_q = new_dueling_model_graph(TARGET_Q_NETWORK_NAME, self.state_size, self.num_actions,
-                                                  learning_rate, clipvalue=False)
+                                                  learning_rate, clip_grad=False)
 
         # Update target graph
         q_params = tf.trainable_variables(Q_NETWORK_NAME)
@@ -148,7 +148,6 @@ class DQN:
         return observation, reward, end, info
 
     def train(self, write_summaries):
-
         if self.prioritized_replay:
             states, actions, rewards, next_states, ends, is_weights, node_indices = \
                 self.replay_memory.sample_batch(self.mini_batch_size)
@@ -171,8 +170,8 @@ class DQN:
             self.g_targets.gamma: self.gamma
         })
 
-        _, abs_td_errors, merged_summaries = self.sess.run(
-            (self.g_q.optimizer, self.g_q.abs_td_errors, self.merged_summaries),
+        _, td_errors, merged_summaries = self.sess.run(
+            (self.g_q.optimizer, self.g_q.td_errors, self.merged_summaries),
             feed_dict={self.g_q.states: states,
                        self.g_q.targets: targets,
                        self.g_q.actions: actions,
@@ -182,7 +181,7 @@ class DQN:
                        })
 
         if self.prioritized_replay:
-            self.replay_memory.update_priorities(node_indices, abs_td_errors)
+            self.replay_memory.update_priorities(node_indices, td_errors)
 
         if write_summaries:
             self.writer.add_summary(merged_summaries)

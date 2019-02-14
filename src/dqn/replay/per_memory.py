@@ -11,13 +11,14 @@ class PERMemory(Memory):
         self.beta = beta
         self.epsilon = epsilon
         self.beta_grow = beta_grow
-        self.max_priority = max_priority
+        self.max_priority = 1.0
         self.sum_tree = SumTree(self.size)
         self.train_step = 0
 
     def add_sample(self, sample):
-        self.sum_tree.add(self.sum_tree.max_value if self.sum_tree.max_value is not None
-                          else self.max_priority ** self.alpha, sample)
+        # New transitions arrive without a known TD-error
+        # They are added with maximal priority to guarantee that they are seen and their TD-error(priority) is updated
+        self.sum_tree.add(self.max_priority ** self.alpha, sample)
         self.added_samples += 1
 
     def sample_batch(self, batch_size):
@@ -50,9 +51,8 @@ class PERMemory(Memory):
 
         return states, actions, rewards, next_states, ends, is_weights, node_indices
 
-    def update_priorities(self, node_indices, abs_td_errors):
-        abs_td_errors = np.minimum(abs_td_errors + self.epsilon, self.max_priority)
-        updated_priorities = np.power(abs_td_errors, self.alpha)
+    def update_priorities(self, node_indices, td_errors):
+        updated_priorities = np.power(np.minimum(np.abs(td_errors) + self.epsilon, self.max_priority), self.alpha)
 
         for i in range(len(updated_priorities)):
             self.sum_tree.update(node_indices[i], updated_priorities[i])

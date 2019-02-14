@@ -12,7 +12,6 @@ class SumTree:
 
     def update_min_max(self, new_value):
         self.min_value = new_value if self.min_value is None else min(self.min_value, new_value)
-        self.max_value = new_value if self.max_value is None else max(self.max_value, new_value)
 
     def add(self, value, data):
         self.data[self.curr_index] = data

@@ -2,8 +2,7 @@ from collections import namedtuple
 
 import tensorflow as tf
 
-
-def new_dueling_model_graph(name, input_size, output_size, learning_rate, clipvalue=False):
+def new_dueling_model_graph(name, input_size, output_size, learning_rate, clip_grad=False):
     with tf.variable_scope(name):
         states = tf.placeholder(tf.float32, shape=[None, input_size])
         targets = tf.placeholder(tf.float32, shape=[None, output_size])
@@ -47,13 +46,16 @@ def new_dueling_model_graph(name, input_size, output_size, learning_rate, clipva
 
         q_values = tf.multiply(output, (tf.one_hot(tf.squeeze(actions), output_size)))
 
-        abs_td_errors = tf.reduce_sum(tf.abs(q_values - targets), axis=1)
+        selected_q_values = tf.reduce_sum(q_values, axis=1)
+        selected_targets = tf.reduce_sum(targets, axis=1)
+        td_errors = tf.clip_by_value(selected_q_values - selected_targets, -1.0, 1.0)
+
         loss = tf.reduce_mean(is_weights * tf.losses.mean_squared_error(labels=targets, predictions=q_values))
 
         optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate)
-        if clipvalue:
+        if clip_grad:
             grads_and_vars = optimizer.compute_gradients(loss)
-            clipped_grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
+            clipped_grads_and_vars = [(tf.clip_by_value(grad, -1.0, 1.0), var) for grad, var in grads_and_vars]
             optimizer = optimizer.apply_gradients(clipped_grads_and_vars)
         else:
             optimizer = optimizer.minimize(loss)
@@ -66,10 +68,10 @@ def new_dueling_model_graph(name, input_size, output_size, learning_rate, clipva
         summaries.append(tf.summary.scalar("loss", loss))
 
         ModelGraph = namedtuple(name, ['states', 'targets', 'actions', 'output', 'q_values', 'is_weights',
-                                       'abs_td_errors', 'loss', 'optimizer', 'summaries'])
+                                       'td_errors', 'loss', 'optimizer', 'summaries'])
 
         return ModelGraph(states, targets, actions, output, q_values, is_weights,
-                          abs_td_errors, loss, optimizer, summaries)
+                          td_errors, loss, optimizer, summaries)
 
 
 def new_targets_graph(mini_batch_size, num_actions):

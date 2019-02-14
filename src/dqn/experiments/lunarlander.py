@@ -15,11 +15,14 @@ dqn = DQN(gamma=0.99,
           mini_batch_size=256,
           update_freq=4,
           target_udpate_freq=250,
-          clip_value=True,
+          clip_grad=True,
+          prioritized_replay=True,
+          prioritized_replay_alpha=0.6,
+          prioritized_replay_beta=0.4,
+          prioritized_replay_beta_grow=lambda beta, train_step: beta + 1 / 200000,
           env=lander,
           tb_path="/Users/lpraat/Desktop/lunarlander/lander" + str(time.time()),
-          save_path="/Users/lpraat/Desktop/lunarlander/save"
           )
 
 dqn.run()
-dqn.run_from_model()
+# dqn.run_from_model()

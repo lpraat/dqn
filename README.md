@@ -5,7 +5,7 @@ environments
 <p align="center">
     <img src="https://media.giphy.com/media/3mgqEbE46leiBk4DAZ/giphy.gif" width="200" height="200" />
     <img src="https://media.giphy.com/media/LwFBZ4oSZh6diQkOq7/giphy.gif" width="200" height="200" />
-    <img src="https://media.giphy.com/media/7AdfabG7Ppz53gjv9O/giphy.gif" width="200" height="200" />
+    <img src="https://media.giphy.com/media/7AdfabG7Ppz53gjv9O/giphy.gif" width="300" height="200" />
 </p>
 
 

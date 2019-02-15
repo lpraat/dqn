@@ -31,6 +31,7 @@ dqn = DQN(gamma=1,
 #           mini_batch_size=64,
 #           update_freq=1,
 #           target_udpate_freq=100,
+#           clip_grad=True,
 #           prioritized_replay=True,
 #           prioritized_replay_alpha=0.3,
 #           prioritized_replay_beta=1,  # keep beta capped at 1

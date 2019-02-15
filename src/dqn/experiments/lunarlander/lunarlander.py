@@ -15,7 +15,7 @@ dqn = DQN(gamma=0.99,
           mini_batch_size=256,
           update_freq=4,
           target_udpate_freq=250,
-          clip_grad=True,
+          clip_grad=True,  # gradients are clipped between -1 and 1
           prioritized_replay=True,
           prioritized_replay_alpha=0.6,
           prioritized_replay_beta=0.4,

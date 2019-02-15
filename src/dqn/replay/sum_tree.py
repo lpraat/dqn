@@ -8,10 +8,6 @@ class SumTree:
         self.data = np.empty(size, dtype=np.object)
         self.curr_index = 0
         self.min_value = None
-        self.max_value = None
-
-    def update_min_max(self, new_value):
-        self.min_value = new_value if self.min_value is None else min(self.min_value, new_value)
 
     def add(self, value, data):
         self.data[self.curr_index] = data
@@ -23,7 +19,7 @@ class SumTree:
         diff = self.nodes[node_index] - value
         self.nodes[node_index] = value
 
-        self.update_min_max(value)
+        self.min_value = value if self.min_value is None else min(self.min_value, value)
 
         while node_index != 0:
             node_index = (node_index - 1) // 2

@@ -1,4 +1,4 @@
-## LunarLander-v2
+# LunarLander-v2
 
 #### Model
 - Layers:
@@ -27,6 +27,14 @@ dqn = DQN(gamma=0.99,
 
 ***Note***: By default, in PER, td errors are clipped between -1 and 1 and as a consequence the max priority is 1.
 
-#### Results
+## Results
 The model solves the problem reaching a average reward over 100 episodes of ~260.
+In the blue run below a average reward over 100 episodes of ~278 has been reached.
 
+| (Blue)Run                                                              |
+|:----------------------------------------------------------------------:|  
+|<img src="https://i.imgur.com/9WTLnHi.png" width="550" height="350"/>   |
+
+| (Orange)Run                                                            |
+|:----------------------------------------------------------------------:|  
+|<img src="https://i.imgur.com/C81I5VM.png" width="550" height="350"/>   |

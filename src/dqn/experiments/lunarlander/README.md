@@ -28,8 +28,8 @@ dqn = DQN(gamma=0.99,
 ***Note***: By default, in PER, td errors are clipped between -1 and 1 and as a consequence the max priority is 1.
 
 ## Results
-The model solves the problem reaching a average reward over 100 episodes of ~260.
-In the blue run below a average reward over 100 episodes of ~278 has been reached.
+The model solves the problem reaching an average reward over 100 episodes of ~260.
+In the blue run below an average reward over 100 episodes of ~278 has been reached.
 
 | (Blue)Run                                                              |
 |:----------------------------------------------------------------------:|  

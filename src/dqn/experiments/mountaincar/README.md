@@ -28,10 +28,10 @@ dqn = DQN(gamma=0.99,
 ***Note***: By default, in PER, td errors are clipped between -1 and 1 and as a consequence the max priority is 1.
 
 ## Results
-The model solves the problem(it learns how to reach the top of the hill - there are no "Solved Requirements" for this environment).
-It reaches a average reward over 100 episodes of ~-101.
+The model solves the problem(it learns how to reach the top of the hill -- there are no "Solved Requirements" for this environment).
+It reaches an average reward over 100 episodes of ~-101.
 
-| (Blue)Run                                                              |
-|:----------------------------------------------------------------------:|  
-|<img src="https://i.imgur.com/MXJEp7g.png" width="550" height="350"/>   |
+| (Orange)Run                                                              |
+|:------------------------------------------------------------------------:|  
+|<img src="https://i.imgur.com/MXJEp7g.png" width="550" height="350"/>     |
 

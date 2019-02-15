@@ -2,6 +2,7 @@ from collections import namedtuple
 
 import tensorflow as tf
 
+
 def new_dueling_model_graph(name, input_size, output_size, learning_rate, clip_grad=False):
     with tf.variable_scope(name):
         states = tf.placeholder(tf.float32, shape=[None, input_size])

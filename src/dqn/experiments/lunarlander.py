@@ -22,6 +22,7 @@ dqn = DQN(gamma=0.99,
           prioritized_replay_beta_grow=lambda beta, train_step: beta + 1 / 200000,
           env=lander,
           tb_path="/Users/lpraat/Desktop/lunarlander/lander" + str(time.time()),
+          save_path="/Users/lpraat/Desktop/lunarlander/model.ckpt",
           )
 
 dqn.run()

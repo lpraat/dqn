@@ -27,13 +27,12 @@ class DQN:
                  prioritized_replay_beta=0.4,
                  prioritized_replay_beta_grow=lambda beta, train_step: beta + 1 / 100000,
                  prioritized_replay_epsilon=1e-3,
-                 prioritized_replay_max_priority=1.0,
                  target_udpate_freq=500,
                  total_timesteps=np.inf,
                  tb_path=None,
                  push_summaries_freq=100,
                  save_path=None,
-                 save_freq=10000,
+                 save_freq=5000,
                  ):
         # TODO add custom network defined by the user
         self.env = env
@@ -80,8 +79,7 @@ class DQN:
                                            alpha=prioritized_replay_alpha,
                                            beta=prioritized_replay_beta,
                                            epsilon=prioritized_replay_epsilon,
-                                           beta_grow=prioritized_replay_beta_grow,
-                                           max_priority=prioritized_replay_max_priority)
+                                           beta_grow=prioritized_replay_beta_grow)
         else:
             self.replay_memory = ReplayMemory(self.replay_size, self.state_size)
 

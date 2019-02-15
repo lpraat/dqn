@@ -5,7 +5,7 @@ from src.dqn.replay.sum_tree import SumTree
 
 
 class PERMemory(Memory):
-    def __init__(self, size, state_size, alpha, beta, epsilon, beta_grow, max_priority):
+    def __init__(self, size, state_size, alpha, beta, epsilon, beta_grow):
         super().__init__(size, state_size)
         self.alpha = alpha
         self.beta = beta

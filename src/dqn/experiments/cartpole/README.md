@@ -1,6 +1,6 @@
-## CartPole-v0
+# CartPole-v0
 
-#### Model1
+### Model1
 - Layers:
     - Common: state_size -> 256
     - Value: common -> 128 -> 1
@@ -21,7 +21,7 @@ dqn = DQN(gamma=1,
           )
 ```
 
-#### Model2
+### Model2
 - Layers:
     - Common: state_size -> 256
     - Value: common -> 128 -> 1
@@ -47,5 +47,13 @@ dqn = DQN(gamma=1,
 
 ***Note***: By default, in PER, td errors are clipped between -1 and 1 and as a consequence the max priority is 1(to the power of alpha).
 
-#### Results
+## Results
 Both models solve the problem reaching a average reward over 100 episodes of 200.
+
+| Compare1: Model1(Blue) vs Model2(Orange)                              |
+|:---------------------------------------------------------------------:|  
+|<img src="https://i.imgur.com/FSFv2Vb.png" width="550" height="350"/>  |
+
+| Compare2: Model1(Light-Blue) vs Model2(Red)                           |
+|:---------------------------------------------------------------------:|  
+|<img src="https://i.imgur.com/ekaGlgw.png" width="550" height="350"/>  |

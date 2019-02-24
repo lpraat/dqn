@@ -31,6 +31,9 @@ dqn = DQN(gamma=0.99,
 The model solves the problem(it learns how to reach the top of the hill -- there are no "Solved Requirements" for this environment).
 It reaches an average reward over 100 episodes of ~-101.
 
+In the graphs the x-axis corresponds to the "relative" time in tensorboard(number of hours since the start of the training) while the
+y-axis corresponds to the total reward at the end of an episode.
+
 | (Orange)Run                                                              |
 |:------------------------------------------------------------------------:|  
 |<img src="https://i.imgur.com/MXJEp7g.png" width="550" height="350"/>     |

@@ -50,6 +50,9 @@ dqn = DQN(gamma=1,
 ## Results
 Both models solve the problem reaching an average reward over 100 episodes of 200.
 
+In the graphs the x-axis corresponds to the "relative" time in tensorboard(number of hours since the start of the training) while the
+y-axis corresponds to the total reward at the end of an episode.
+
 | Compare1: Model1(Blue) vs Model2(Orange)                              |
 |:---------------------------------------------------------------------:|  
 |<img src="https://i.imgur.com/FSFv2Vb.png" width="550" height="350"/>  |

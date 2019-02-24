@@ -31,6 +31,9 @@ dqn = DQN(gamma=0.99,
 The model solves the problem reaching an average reward over 100 episodes of ~260.
 In the blue run below an average reward over 100 episodes of ~278 has been reached.
 
+In the graphs the x-axis corresponds to the "relative" time in tensorboard(number of hours since the start of the training) while the
+y-axis corresponds to the total reward at the end of an episode.
+
 | (Blue)Run                                                              |
 |:----------------------------------------------------------------------:|  
 |<img src="https://i.imgur.com/9WTLnHi.png" width="550" height="350"/>   |

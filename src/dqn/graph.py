@@ -1,98 +1,65 @@
 from collections import namedtuple
+from src.dqn.utils import clip_gradient_by_value
 
 import tensorflow as tf
 
 
-def new_dueling_model_graph(name, input_size, output_size, learning_rate, clip_grad=False):
-    with tf.variable_scope(name):
-        states = tf.placeholder(tf.float32, shape=[None, input_size])
-        targets = tf.placeholder(tf.float32, shape=[None, output_size])
-        actions = tf.placeholder(tf.int32, shape=[None, 1])
-        is_weights = tf.placeholder(tf.float32, shape=[None, 1])
+def new_dueling_model(name, input_size, output_size, learning_rate, clip_grad=False):
+    states = tf.keras.layers.Input(shape=(input_size,))
+    h1 = tf.keras.layers.Dense(256, activation='relu')(states)
 
-        # TODO add possibility to define a custom network here
-        h1_layer = tf.layers.dense(
-            inputs=states,
-            units=256,
-            activation=tf.nn.relu
-        )
+    # State value function
+    value_h2 = tf.keras.layers.Dense(128, activation='relu')(h1)
+    value_output = tf.keras.layers.Dense(1)(value_h2)
 
-        # State value function
-        value_h2_layer = tf.layers.dense(
-            inputs=h1_layer,
-            units=128,
-            activation=tf.nn.relu
-        )
+    # Advantage function
+    advantage_h2 = tf.keras.layers.Dense(128, activation='relu')(h1)
+    advantage_output = tf.keras.layers.Dense(output_size)(advantage_h2)
 
-        value_output = tf.layers.dense(
-            inputs=value_h2_layer,
-            units=1,
-            activation=None
-        )
+    outputs = value_output + (advantage_output - tf.reduce_mean(advantage_output, axis=1, keepdims=True))
 
-        # Advantage function
-        advantage_h2_layer = tf.layers.dense(
-            inputs=h1_layer,
-            units=128,
-            activation=tf.nn.relu
-        )
+    model = tf.keras.Model(inputs=states, outputs=outputs, name=name)
 
-        advantage_output = tf.layers.dense(
-            inputs=advantage_h2_layer,
-            units=output_size,
-            activation=None
-        )
+    return model
 
-        output = value_output + (advantage_output - tf.reduce_mean(advantage_output, axis=1, keepdims=True))
+# @tf.function  # This decoration does not work see https://stackoverflow.com/questions/55766641/gradients-are-none-when-using-tf-function-decorator
+# TODO once this works add it
+def q_train(states, actions, targets, is_weights, model, output_size, learning_rate, clip_grad):
+    optimizer = tf.keras.optimizers.RMSprop(learning_rate=learning_rate)
 
-        q_values = tf.multiply(output, (tf.one_hot(tf.squeeze(actions), output_size)))
+    with tf.GradientTape() as tape:
+        outputs = model(states)
+        q_values = tf.multiply(outputs, (tf.one_hot(tf.squeeze(actions), output_size)))
 
-        selected_q_values = tf.reduce_sum(q_values, axis=1)
-        selected_targets = tf.reduce_sum(targets, axis=1)
-        td_errors = tf.clip_by_value(selected_q_values - selected_targets, -1.0, 1.0)
+        mse = tf.keras.losses.MeanSquaredError()(y_pred=q_values, y_true=targets)
+        loss_value = tf.reduce_mean(is_weights * mse)
 
-        loss = tf.reduce_mean(is_weights * tf.losses.mean_squared_error(labels=targets, predictions=q_values))
+    grads = tape.gradient(loss_value, model.trainable_variables)
 
-        optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate)
-        if clip_grad:
-            grads_and_vars = optimizer.compute_gradients(loss)
-            clipped_grads_and_vars = [(tf.clip_by_value(grad, -1.0, 1.0), var) for grad, var in grads_and_vars]
-            optimizer = optimizer.apply_gradients(clipped_grads_and_vars)
-        else:
-            optimizer = optimizer.minimize(loss)
+    selected_q_values = tf.reduce_sum(q_values, axis=1)
+    selected_targets = tf.reduce_sum(targets, axis=1)
+    td_errors = tf.clip_by_value(selected_q_values - selected_targets, -1.0, 1.0)
 
-        summaries = []
-        train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, name)
-        for v in train_vars:
-            summaries.append(tf.summary.histogram(v.name, v))
+    if clip_grad:
+        optimizer.apply_gradients(zip([tf.clip_by_value(grad, -1.0, 1.0) for grad in grads], model.trainable_variables))
+    else:
+        optimizer.apply_gradients(zip(grads, model.trainable_variables))
 
-        summaries.append(tf.summary.scalar("loss", loss))
-
-        ModelGraph = namedtuple(name, ['states', 'targets', 'actions', 'output', 'q_values', 'is_weights',
-                                       'td_errors', 'loss', 'optimizer', 'summaries'])
-
-        return ModelGraph(states, targets, actions, output, q_values, is_weights,
-                          td_errors, loss, optimizer, summaries)
+    return td_errors
 
 
-def new_targets_graph(mini_batch_size, num_actions):
-    actions = tf.placeholder(dtype=tf.int32, shape=(mini_batch_size, 1))
-    preds_next = tf.placeholder(dtype=tf.float32, shape=(mini_batch_size, num_actions))
-    preds_t = tf.placeholder(dtype=tf.float32, shape=(mini_batch_size, num_actions))
-    rewards = tf.placeholder(dtype=tf.float32, shape=(mini_batch_size, 1))
-    ends = tf.placeholder(dtype=tf.float32, shape=(mini_batch_size, 1))
-    gamma = tf.placeholder(dtype=tf.float32)
-
+@tf.function
+def get_targets(mini_batch_size, num_actions, actions, preds_next, preds_t, rewards, ends, gamma):
     one_hot_next_actions = tf.one_hot(tf.argmax(preds_next, axis=1), num_actions)
     next_qs = tf.reduce_sum(preds_t * one_hot_next_actions, axis=1, keepdims=True)
     targets = tf.zeros((mini_batch_size, num_actions))
     targets += rewards + (gamma * next_qs) * (1 - ends)
     targets *= tf.squeeze(tf.one_hot(actions, num_actions))
 
-    TargetsGraph = namedtuple('TargetsGraph', ['actions', 'preds_next', 'preds_t',
-                                               'rewards', 'ends', 'gamma', 'targets'])
-    return TargetsGraph(actions, preds_next, preds_t, rewards, ends, gamma, targets)
+    return targets
 
 
-def new_update_target_graph(q_params, target_q_params):
-    return [tf.assign(target_q_params[i], q_params[i]) for i in range(len(q_params))]
+@tf.function
+def update_target_q(model, target_q_model):
+    for i in range(len(model.trainable_variables)):
+        target_q_model.trainable_variables[i].assign(model.trainable_variables[i])

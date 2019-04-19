@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
-from src.dqn.graph import new_targets_graph, new_dueling_model_graph, new_update_target_graph
+from src.dqn.graph import new_dueling_model, update_target_q, q_train, get_targets
 from src.dqn.replay.per_memory import PERMemory
 from src.dqn.replay.replay_memory import ReplayMemory
 
@@ -51,19 +51,21 @@ class DQN:
 
         # Create tensorflow graphs
         # Q graph
-        self.g_q = new_dueling_model_graph(Q_NETWORK_NAME, self.state_size, self.num_actions, learning_rate,
+        self.q = new_dueling_model(Q_NETWORK_NAME, self.state_size, self.num_actions, learning_rate,
                                            clip_grad=clip_grad)
+
+        print(self.q.summary())
         # Target Q graph
-        self.g_target_q = new_dueling_model_graph(TARGET_Q_NETWORK_NAME, self.state_size, self.num_actions,
+        self.target_q = new_dueling_model(TARGET_Q_NETWORK_NAME, self.state_size, self.num_actions,
                                                   learning_rate, clip_grad=False)
 
         # Update target graph
-        q_params = tf.trainable_variables(Q_NETWORK_NAME)
-        target_q_params = tf.trainable_variables(TARGET_Q_NETWORK_NAME)
-        self.g_update_target_q = new_update_target_graph(q_params, target_q_params)
+       # q_params = tf.trainable_variables(Q_NETWORK_NAME)
+       # target_q_params = tf.trainable_variables(TARGET_Q_NETWORK_NAME)
+       # self.g_update_target_q = new_update_target_graph(q_params, target_q_params)
 
         # Targets graph
-        self.g_targets = new_targets_graph(self.mini_batch_size, self.num_actions)
+     #   self.g_targets = new_targets_graph(self.mini_batch_size, self.num_actions)
 
         self.gamma = gamma
         self.epsilon = epsilon
@@ -84,34 +86,34 @@ class DQN:
             self.replay_memory = ReplayMemory(self.replay_size, self.state_size)
 
         # Summaries
-        self.writer = tf.summary.FileWriter(tb_path)
+        #self.writer = tf.summary.FileWriter(tb_path)
         self.push_summaries_freq = push_summaries_freq
 
         # Create a summary for total reward per episode
-        self.episode_reward_tf = tf.placeholder(dtype=tf.float32)
-        self.episode_reward_summary = tf.summary.scalar("reward", self.episode_reward_tf)
+        #self.episode_reward_tf = tf.placeholder(dtype=tf.float32)
+        #self.episode_reward_summary = tf.summary.scalar("reward", self.episode_reward_tf)
 
         # Create a summary for moving average
-        self.curr_mean_tf = tf.placeholder(dtype=tf.float32)
-        self.curr_mean_summary = tf.summary.scalar("mean_reward", self.curr_mean_tf)
+        #self.curr_mean_tf = tf.placeholder(dtype=tf.float32)
+        #self.curr_mean_summary = tf.summary.scalar("mean_reward", self.curr_mean_tf)
 
         # Merge all the summaries
-        self.summaries = [*self.g_q.summaries, self.episode_reward_summary, self.curr_mean_summary]
-        self.merged_summaries = tf.summary.merge(self.summaries)
-        self.sess = None
+        #self.summaries = [*self.g_q.summaries, self.episode_reward_summary, self.curr_mean_summary]
+        #self.merged_summaries = tf.summary.merge(self.summaries)
+        #self.sess = None
 
         # Model saver
-        self.save_path = save_path
-        if self.save_path:
-            self.saver = tf.train.Saver(var_list=tf.trainable_variables(Q_NETWORK_NAME) +
-                                                 tf.trainable_variables(TARGET_Q_NETWORK_NAME))
-            self.save_freq = save_freq
+        #self.save_path = save_path
+        #if self.save_path:
+        #    self.saver = tf.train.Saver(var_list=tf.trainable_variables(Q_NETWORK_NAME) +
+        #                                         tf.trainable_variables(TARGET_Q_NETWORK_NAME))
+        #    self.save_freq = save_freq
 
     def q_step(self):
         s = self.s.reshape(1, self.state_size)
 
         if np.random.rand() > self.epsilon:
-            a = np.argmax(self.sess.run(self.g_q.output, feed_dict={self.g_q.states: s}))
+            a = np.argmax(self.q(s))
         else:
             # Random action
             a = np.random.randint(self.num_actions)
@@ -153,79 +155,54 @@ class DQN:
             states, actions, rewards, next_states, ends = self.replay_memory.sample_batch(self.mini_batch_size)
             is_weights = np.ones_like(ends, dtype=np.float32)
 
-        preds_next, preds_t = self.sess.run((self.g_q.output, self.g_target_q.output),
-                                            feed_dict={
-                                                self.g_q.states: next_states,
-                                                self.g_target_q.states: next_states
-                                            })
+        preds_next = self.q(next_states)
+        preds_t = self.target_q(next_states)
 
-        targets = self.sess.run(self.g_targets.targets, feed_dict={
-            self.g_targets.actions: actions,
-            self.g_targets.preds_next: preds_next,
-            self.g_targets.preds_t: preds_t,
-            self.g_targets.rewards: rewards,
-            self.g_targets.ends: ends,
-            self.g_targets.gamma: self.gamma
-        })
+        targets = get_targets(self.mini_batch_size, self.num_actions, actions, preds_next, preds_t, rewards, ends, self.gamma)
 
-        _, td_errors, merged_summaries = self.sess.run(
-            (self.g_q.optimizer, self.g_q.td_errors, self.merged_summaries),
-            feed_dict={self.g_q.states: states,
-                       self.g_q.targets: targets,
-                       self.g_q.actions: actions,
-                       self.g_q.is_weights: is_weights,
-                       self.episode_reward_tf: self.episode_reward,
-                       self.curr_mean_tf: self.curr_mean
-                       })
+        td_errors = q_train(states, actions, targets, is_weights, self.q, self.num_actions, 0.00025, False)
 
         if self.prioritized_replay:
             self.replay_memory.update_priorities(node_indices, td_errors)
 
-        if write_summaries:
-            self.writer.add_summary(merged_summaries)
-
-    def update_targetQ(self):
-        self.sess.run(self.g_update_target_q)
+        # if write_summaries:
+        #     self.writer.add_summary(merged_summaries)
 
     def run(self):
         step = 0
 
-        with tf.Session() as sess:
-            self.sess = sess
-            self.sess.run(tf.global_variables_initializer())
+        update_target_q(self.q, self.target_q)
 
-            self.update_targetQ()
+        # self.writer.add_graph(sess.graph)
 
-            self.writer.add_graph(sess.graph)
+        while step < self.total_timesteps:
+            new_experience = self.q_step()
+            self.epsilon = max(self.epsilon_min, self.epsilon_decay(self.epsilon, step))
 
-            while step < self.total_timesteps:
-                new_experience = self.q_step()
-                self.epsilon = max(self.epsilon_min, self.epsilon_decay(self.epsilon, step))
+            # Store transition in replay memory
+            self.replay_memory.add_sample(new_experience)
 
-                # Store transition in replay memory
-                self.replay_memory.add_sample(new_experience)
+            step += 1
 
-                step += 1
+            if step % self.update_freq == 0 and self.replay_memory.added_samples >= self.mini_batch_size:
 
-                if step % self.update_freq == 0 and self.replay_memory.added_samples >= self.mini_batch_size:
+                # Push summaries to event file
+                if step % self.push_summaries_freq == 0:
+                    self.train(write_summaries=True)
+                else:
+                    self.train(write_summaries=False)
 
-                    # Push summaries to event file
-                    if step % self.push_summaries_freq == 0:
-                        self.train(write_summaries=True)
-                    else:
-                        self.train(write_summaries=False)
+            if step % self.target_update_freq == 0:
+                update_target_q(self.q, self.target_q)
 
-                if step % self.target_update_freq == 0:
-                    self.update_targetQ()
+            # if self.save_path and step % self.save_freq == 0:
+            #     print(f"Saving model...")
+                #self.saver.save(sess, self.save_path)
 
-                if self.save_path and step % self.save_freq == 0:
-                    print(f"Saving model...")
-                    self.saver.save(sess, self.save_path)
-
-    def run_from_model(self):
-        self.epsilon = 0
-        with tf.Session() as sess:
-            self.sess = sess
-            self.saver.restore(sess, self.save_path)
-            while True:
-                self.q_step()
+    # def run_from_model(self):
+    #     self.epsilon = 0
+    #     with tf.Session() as sess:
+    #         self.sess = sess
+    #         self.saver.restore(sess, self.save_path)
+    #         while True:
+    #             self.q_step()

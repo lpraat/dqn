@@ -24,7 +24,7 @@ class ReplayMemory(Memory):
         actions = np.empty((batch_size, 1), dtype=np.int32)
         rewards = np.empty((batch_size, 1), dtype=np.float32)
         next_states = np.empty((batch_size, self.state_size), dtype=np.float32)
-        ends = np.empty((batch_size, 1), dtype=np.int32)
+        ends = np.empty((batch_size, 1), dtype=np.float32)
 
         for i in range(batch_size):
             sample = self.buffer[np.random.randint(curr_len)]

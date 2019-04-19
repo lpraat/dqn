@@ -23,12 +23,12 @@ class PERMemory(Memory):
 
     def sample_batch(self, batch_size):
         states = np.empty((batch_size, self.state_size))
-        actions = np.empty((batch_size, 1), dtype=np.int32)
+        actions = np.empty((batch_size, 1), dtype=np.float32)
         rewards = np.empty((batch_size, 1), dtype=np.float32)
         next_states = np.empty((batch_size, self.state_size), dtype=np.float32)
-        ends = np.empty((batch_size, 1), dtype=np.int32)
+        ends = np.empty((batch_size, 1), dtype=np.float32)
         is_weights = np.empty((batch_size, 1), dtype=np.float32)
-        node_indices = np.empty((batch_size,), dtype=np.int32)
+        node_indices = np.empty((batch_size,), dtype=np.float32)
 
         tree_total_sum = self.sum_tree.get_total_sum()
         range_size = tree_total_sum / batch_size

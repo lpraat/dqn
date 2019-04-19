@@ -35,9 +35,9 @@ In the graphs the x-axis corresponds to the "relative" time in tensorboard(numbe
 y-axis corresponds to the total reward at the end of an episode.
 
 | (Blue)Run                                                              |
-|:----------------------------------------------------------------------:|  
+|:----------------------------------------------------------------------:|
 |<img src="https://i.imgur.com/9WTLnHi.png" width="550" height="350"/>   |
 
 | (Orange)Run                                                            |
-|:----------------------------------------------------------------------:|  
+|:----------------------------------------------------------------------:|
 |<img src="https://i.imgur.com/C81I5VM.png" width="550" height="350"/>   |

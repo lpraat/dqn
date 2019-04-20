@@ -1,8 +1,8 @@
 from collections import namedtuple
-from src.dqn.utils import clip_gradient_by_value
 
 import tensorflow as tf
-
+from tensorflow.python.ops import control_flow_util
+control_flow_util.ENABLE_CONTROL_FLOW_V2 = True
 
 def new_dueling_model(name, input_size, output_size, learning_rate, clip_grad=False):
     states = tf.keras.layers.Input(shape=(input_size,))
@@ -10,11 +10,11 @@ def new_dueling_model(name, input_size, output_size, learning_rate, clip_grad=Fa
 
     # State value function
     value_h2 = tf.keras.layers.Dense(128, activation='relu')(h1)
-    value_output = tf.keras.layers.Dense(1)(value_h2)
+    value_output = tf.keras.layers.Dense(1, activation=None)(value_h2)
 
     # Advantage function
     advantage_h2 = tf.keras.layers.Dense(128, activation='relu')(h1)
-    advantage_output = tf.keras.layers.Dense(output_size)(advantage_h2)
+    advantage_output = tf.keras.layers.Dense(output_size, activation=None)(advantage_h2)
 
     outputs = value_output + (advantage_output - tf.reduce_mean(advantage_output, axis=1, keepdims=True))
 
@@ -24,6 +24,7 @@ def new_dueling_model(name, input_size, output_size, learning_rate, clip_grad=Fa
 
 # @tf.function  # This decoration does not work see https://stackoverflow.com/questions/55766641/gradients-are-none-when-using-tf-function-decorator
 # TODO once this works add it
+
 def q_train(states, actions, targets, is_weights, model, output_size, learning_rate, clip_grad):
     optimizer = tf.keras.optimizers.RMSprop(learning_rate=learning_rate)
 
@@ -31,8 +32,9 @@ def q_train(states, actions, targets, is_weights, model, output_size, learning_r
         outputs = model(states)
         q_values = tf.multiply(outputs, (tf.one_hot(tf.squeeze(actions), output_size)))
 
-        mse = tf.keras.losses.MeanSquaredError()(y_pred=q_values, y_true=targets)
-        loss_value = tf.reduce_mean(is_weights * mse)
+        # TODO be sure that this is right otherwise just re write using tf.square
+        # tf.losses.mean_squared_error vs tf.keras.losses.MeanSquaredError()
+        loss_value = tf.reduce_mean(is_weights * tf.losses.mean_squared_error(targets, q_values))
 
     grads = tape.gradient(loss_value, model.trainable_variables)
 
@@ -59,7 +61,7 @@ def get_targets(mini_batch_size, num_actions, actions, preds_next, preds_t, rewa
     return targets
 
 
-@tf.function
 def update_target_q(model, target_q_model):
-    for i in range(len(model.trainable_variables)):
-        target_q_model.trainable_variables[i].assign(model.trainable_variables[i])
+    #for i in range(len(model.trainable_variables)):
+    target_q_model.set_weights(model.get_weights())
+       # target_q_model.trainable_variables[i].assign(model.trainable_variables[i])

@@ -5,6 +5,10 @@ from src.dqn.graph import new_dueling_model, update_target_q, q_train, get_targe
 from src.dqn.replay.per_memory import PERMemory
 from src.dqn.replay.replay_memory import ReplayMemory
 
+from tensorflow.python.ops import control_flow_util
+control_flow_util.ENABLE_CONTROL_FLOW_V2 = True
+
+
 Q_NETWORK_NAME = "q_network"
 TARGET_Q_NETWORK_NAME = "target_q_network"
 
@@ -160,7 +164,15 @@ class DQN:
 
         targets = get_targets(self.mini_batch_size, self.num_actions, actions, preds_next, preds_t, rewards, ends, self.gamma)
 
-        td_errors = q_train(states, actions, targets, is_weights, self.q, self.num_actions, 0.00025, False)
+        # TODO just use tensors
+        states = tf.identity(states)
+        actions = tf.identity(actions)
+        targets = tf.identity(targets)
+        is_weights = tf.identity(is_weights)
+        num_actions = tf.identity(self.num_actions)
+        learning_rate = tf.identity(0.00025)
+
+        td_errors = q_train(states, actions, targets, is_weights, self.q, num_actions,learning_rate, False)
 
         if self.prioritized_replay:
             self.replay_memory.update_priorities(node_indices, td_errors)

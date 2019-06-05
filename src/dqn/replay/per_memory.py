@@ -26,7 +26,7 @@ class PERMemory(Memory):
         actions = np.empty((batch_size, 1), dtype=np.int32)
         rewards = np.empty((batch_size, 1), dtype=np.float32)
         next_states = np.empty((batch_size, self.state_size), dtype=np.float32)
-        ends = np.empty((batch_size, 1), dtype=np.int32)
+        ends = np.empty((batch_size, 1), dtype=np.float32)
         is_weights = np.empty((batch_size, 1), dtype=np.float32)
         node_indices = np.empty((batch_size,), dtype=np.int32)
 

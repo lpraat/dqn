@@ -65,11 +65,12 @@ class DQN:
 
         # Summaries
         self.tb_path = tb_path
-        self.writer = tf.summary.create_file_writer(self.tb_path)
+        if self.tb_path is not None:
+            self.writer = tf.summary.create_file_writer(self.tb_path)
 
         # Model saving
         self.save_path = save_path
-        if self.save_path:
+        if self.save_path is not None:
             self.save_freq = save_freq
 
     def q_step(self, step):
@@ -93,8 +94,9 @@ class DQN:
             self.total_rewards.append(self.r)
             print(f"End of episode. Reward: {self.r}")
 
-            with self.writer.as_default():
-                tf.summary.scalar("reward", self.r, step=step)
+            if self.tb_path:
+                with self.writer.as_default():
+                    tf.summary.scalar("reward", self.r, step=step)
 
             if len(self.total_rewards) == 100:
                 mean_reward = np.mean(self.total_rewards)

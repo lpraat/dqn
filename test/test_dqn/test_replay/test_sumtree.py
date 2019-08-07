@@ -19,7 +19,7 @@ class TestSumTree(unittest.TestCase):
         np.testing.assert_array_almost_equal(t.nodes, [102, 48, 54, 4, 44, 52, 2])
         self.assertAlmostEqual(t.get_total_sum(), 102)
         self.assertAlmostEqual(t.min_value, 2)
-        self.assertAlmostEqual(t.max_value, 52)
+        self.assertAlmostEqual(max(t.nodes[t.size // 2 + 1:]), 52)
 
         t.update(0, 12)
         np.testing.assert_array_almost_equal(t.nodes, [110, 56, 54, 12, 44, 52, 2])
@@ -41,4 +41,4 @@ class TestSumTree(unittest.TestCase):
         t.add(1, "B")
         t.add(100, "C")
         self.assertAlmostEqual(t.min_value, 1)
-        self.assertAlmostEqual(t.max_value, 100)
+        self.assertAlmostEqual(max(t.nodes[t.size // 2 + 1:]), 100)

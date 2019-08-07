@@ -5,7 +5,7 @@ from src.dqn.replay.per_memory import PERMemory
 from src.dqn.replay.replay_memory import ReplayMemory
 
 class DQN:
-    # TODO doc
+    #  TODO doc
     def __init__(self,
                  env,
                  gamma=0.99,
@@ -72,7 +72,7 @@ class DQN:
         if self.save_path:
             self.save_freq = save_freq
 
-    def q_step(self):
+    def q_step(self, step):
         s = self.s.reshape(1, self.state_size)
 
         if np.random.rand() > self.epsilon:
@@ -81,10 +81,10 @@ class DQN:
             # Random action
             a = np.random.randint(self.num_actions)
 
-        next_s, reward, done, _ = self.act(a)
+        next_s, reward, done, _ = self.act(a, step)
         return np.array((s, a, reward, next_s, done))
 
-    def act(self, a):
+    def act(self, a, step):
         self.env.render()
         observation, reward, end, info = self.env.step(a)
         self.r += reward
@@ -94,7 +94,7 @@ class DQN:
             print(f"End of episode. Reward: {self.r}")
 
             with self.writer.as_default():
-                tf.summary.scalar("reward", self.r, step=0)
+                tf.summary.scalar("reward", self.r, step=step)
 
             if len(self.total_rewards) == 100:
                 mean_reward = np.mean(self.total_rewards)
@@ -136,7 +136,6 @@ class DQN:
 
         return td_errors
 
-
     @tf.function
     def get_targets(self, actions, preds_next, preds_t, rewards, ends):
         one_hot_next_actions = tf.one_hot(tf.argmax(preds_next, axis=1), self.num_actions)
@@ -162,19 +161,19 @@ class DQN:
 
         # TODO graph visualization does not work
         # see https://github.com/tensorflow/tensorboard/issues/1961
-        # tf.summary.trace_on(graph=True, profiler=False)
+        # tf.summary.trace_on()
         targets = self.get_targets(actions, preds_next, preds_t, rewards, ends)
         # with self.writer.as_default():
         #     tf.summary.trace_export(
         #         name="get_targets_graph",
-        #         step=step)
+        #         step=0)
 
-        # tf.summary.trace_on(graph=True, profiler=False)
+        # tf.summary.trace_on()
         td_errors = self.train_step(states, actions, targets, is_weights)
         # with self.writer.as_default():
         #     tf.summary.trace_export(
         #         name="train_step_graph",
-        #         step=step)
+        #         step=0)
 
         if self.prioritized_replay:
             self.replay_memory.update_priorities(node_indices, td_errors)
@@ -185,7 +184,7 @@ class DQN:
         self.update_target_q()
 
         while step < self.total_timesteps:
-            new_experience = self.q_step()
+            new_experience = self.q_step(step)
             self.epsilon = max(self.epsilon_min, self.epsilon_decay(self.epsilon, step))
 
             # Store transition in replay memory
@@ -227,5 +226,7 @@ class DQN:
         self.q.load_weights(self.save_path)
         self.target_q.load_weights(self.save_path)
 
+        step = 0
         while True:
-            self.q_step()
+            self.q_step(step)
+            step += 1

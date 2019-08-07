@@ -18,7 +18,7 @@ dqn = DQN(gamma=1,
           clip_grad=False,
           env=cart,
           tb_path="/Users/lpraat/Desktop/cartpole/pole" + str(time.time()),
-          save_path="/Users/lpraat/Desktop/lunarlander/model.ckpt",
+          save_path="/Users/lpraat/Desktop/cartpole/model.ckpt",
           )
 
 # PER
@@ -37,7 +37,7 @@ dqn = DQN(gamma=1,
 #           prioritized_replay_beta=1,  # keep beta capped at 1
 #           env=cart,
 #           tb_path="/Users/lpraat/Desktop/cartpole/pole" + str(time.time()),
-#           save_path="/Users/lpraat/Desktop/lunarlander/model.ckpt",
+#           save_path="/Users/lpraat/Desktop/cartpole/model.ckpt",
 #           save_freq=1000
 #           )
 

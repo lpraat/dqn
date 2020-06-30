@@ -1,5 +1,4 @@
-### Reinforcement learning playground
-Implementations of RL algorithms.
+### DQN playground
 
 <p align="center">
     <img src="https://media.giphy.com/media/3mgqEbE46leiBk4DAZ/giphy.gif" width="200" height="200" />
